@@ -33,7 +33,7 @@ def softmax(x):
         ### YOUR CODE HERE
 #         raise NotImplementedError
         x_exp = np.exp(x-np.max(x,1).reshape(-1,1))
-        x = x_exp/np.sum(x_exp,1)
+        x = x_exp/np.sum(x_exp,1).reshape(-1,1)
         ### END YOUR CODE
     else:
         # Vector
