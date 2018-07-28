@@ -32,19 +32,20 @@ def softmax(x):
         # Matrix
         ### YOUR CODE HERE
 #         raise NotImplementedError
-        x_exp = np.exp(x-np.max(x,1).reshape(-1,1))
-        x = x_exp/np.sum(x_exp,1)
+        x_exp = np.exp(x-np.max(x,1))
+        x = x_exp/np.sum(x,1)
         ### END YOUR CODE
     else:
         # Vector
         ### YOUR CODE HERE
 #         raise NotImplementedError
         x_exp = np.exp(x-np.max(x))
-        x = x_exp / np.sum(x_exp)
+        x = x_exp / np.sum(x)
         ### END YOUR CODE
 
     assert x.shape == orig_shape
     return x
+
 
 def test_softmax_basic():
     """
