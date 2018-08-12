@@ -1,3 +1,4 @@
+
 import time
 
 import numpy as np
@@ -6,8 +7,45 @@ import tensorflow as tf
 from q1_softmax import softmax
 from q1_softmax import cross_entropy_loss
 from model import Model
-from utils.general_utils import get_minibatches
+# from utils.general_utils import get_minibatches
 
+
+
+def get_minibatches(data, minibatch_size, shuffle=True):
+    """
+    Iterates through the provided data one minibatch at at time. You can use this function to
+    iterate through data in minibatches as follows:
+        for inputs_minibatch in get_minibatches(inputs, minibatch_size):
+            ...
+    Or with multiple data sources:
+        for inputs_minibatch, labels_minibatch in get_minibatches([inputs, labels], minibatch_size):
+            ...
+    Args:
+        data: there are two possible values:
+            - a list or numpy array
+            - a list where each element is either a list or numpy array
+        minibatch_size: the maximum number of items in a minibatch
+        shuffle: whether to randomize the order of returned data
+    Returns:
+        minibatches: the return value depends on data:
+            - If data is a list/array it yields the next minibatch of data.
+            - If data a list of lists/arrays it returns the next minibatch of each element in the
+              list. This can be used to iterate through multiple data sources
+              (e.g., features and labels) at the same time.
+    """
+    list_data = type(data) is list and (type(data[0]) is list or type(data[0]) is np.ndarray)
+    data_size = len(data[0]) if list_data else len(data)
+    indices = np.arange(data_size)
+    if shuffle:
+        np.random.shuffle(indices)
+    for minibatch_start in np.arange(0, data_size, minibatch_size):
+        minibatch_indices = indices[minibatch_start:minibatch_start + minibatch_size]
+        yield [minibatch(d, minibatch_indices) for d in data] if list_data \
+            else minibatch(data, minibatch_indices)
+
+
+def minibatch(data, minibatch_idx):
+    return data[minibatch_idx] if type(data) is np.ndarray else [data[i] for i in minibatch_idx]
 
 class Config(object):
     """Holds model hyperparams and data information.
@@ -45,6 +83,8 @@ class SoftmaxModel(Model):
             self.labels_placeholder
         """
         ### YOUR CODE HERE
+        self.input_placeholder = tf.placeholder(tf.float32, shape=(self.config.batch_size,self.config.n_features))
+        self.labels_placeholder = tf.placeholder(tf.int32, shape=(self.config.batch_size,self.config.n_classes))
         ### END YOUR CODE
 
     def create_feed_dict(self, inputs_batch, labels_batch=None):
@@ -68,6 +108,15 @@ class SoftmaxModel(Model):
             feed_dict: The feed dictionary mapping from placeholders to values.
         """
         ### YOUR CODE HERE
+        if labels_batch.all() != None:
+          feed_dict = {
+              self.input_placeholder : inputs_batch,
+              self.labels_placeholder : labels_batch
+          }
+        else:
+          feed_dict = {
+              self.input_placeholder : inputs_batch
+          }
         ### END YOUR CODE
         return feed_dict
 
@@ -88,6 +137,19 @@ class SoftmaxModel(Model):
             pred: A tensor of shape (batch_size, n_classes)
         """
         ### YOUR CODE HERE
+        W = tf.get_variable('W',
+                            shape=[self.config.n_features,self.config.n_classes],
+                            dtype=tf.float32,
+                            initializer=tf.zeros_initializer(),
+                            trainable=True,
+                            )
+        b = tf.get_variable('b',
+                            shape=[self.config.n_classes],
+                            dtype=tf.float32,
+                            initializer=tf.zeros_initializer(),
+                            trainable=True,
+                           )
+        pred = softmax(tf.matmul(self.input_placeholder,W) + b)                  
         ### END YOUR CODE
         return pred
 
@@ -102,6 +164,7 @@ class SoftmaxModel(Model):
             loss: A 0-d tensor (scalar)
         """
         ### YOUR CODE HERE
+        loss = cross_entropy_loss(self.labels_placeholder,pred)
         ### END YOUR CODE
         return loss
 
@@ -125,6 +188,7 @@ class SoftmaxModel(Model):
             train_op: The Op for training.
         """
         ### YOUR CODE HERE
+        train_op = tf.train.GradientDescentOptimizer(self.config.lr).minimize(loss)
         ### END YOUR CODE
         return train_op
 

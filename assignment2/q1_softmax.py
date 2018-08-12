@@ -1,273 +1,123 @@
 
-import time
-
 import numpy as np
 import tensorflow as tf
+import sys
+# sys.path.append('/content/cs224n-2017/assignment2/utils')
+# from utils.general_utils import test_all_close
 
-from q1_softmax import softmax
-from q1_softmax import cross_entropy_loss
-from model import Model
-# from utils.general_utils import get_minibatches
+def test_all_close(name, actual, expected):
+    if actual.shape != expected.shape:
+        raise ValueError("{:} failed, expected output to have shape {:} but has shape {:}"
+                         .format(name, expected.shape, actual.shape))
+    if np.amax(np.fabs(actual - expected)) > 1e-6:
+        raise ValueError("{:} failed, expected {:} but value is {:}".format(name, expected, actual))
+    else:
+        print name, "passed!"
 
-
-
-def get_minibatches(data, minibatch_size, shuffle=True):
+def softmax(x):
     """
-    Iterates through the provided data one minibatch at at time. You can use this function to
-    iterate through data in minibatches as follows:
-        for inputs_minibatch in get_minibatches(inputs, minibatch_size):
-            ...
-    Or with multiple data sources:
-        for inputs_minibatch, labels_minibatch in get_minibatches([inputs, labels], minibatch_size):
-            ...
+    Compute the softmax function in tensorflow.
+
+    You might find the tensorflow functions tf.exp, tf.reduce_max,
+    tf.reduce_sum, tf.expand_dims useful. (Many solutions are possible, so you may
+    not need to use all of these functions). Recall also that many common
+    tensorflow operations are sugared (e.g. x * y does a tensor multiplication
+    if x and y are both tensors). Make sure to implement the numerical stability
+    fixes as in the previous homework!
+
     Args:
-        data: there are two possible values:
-            - a list or numpy array
-            - a list where each element is either a list or numpy array
-        minibatch_size: the maximum number of items in a minibatch
-        shuffle: whether to randomize the order of returned data
+        x:   tf.Tensor with shape (n_samples, n_features). Note feature vectors are
+                  represented by row-vectors. (For simplicity, no need to handle 1-d
+                  input as in the previous homework)
     Returns:
-        minibatches: the return value depends on data:
-            - If data is a list/array it yields the next minibatch of data.
-            - If data a list of lists/arrays it returns the next minibatch of each element in the
-              list. This can be used to iterate through multiple data sources
-              (e.g., features and labels) at the same time.
+        out: tf.Tensor with shape (n_sample, n_features). You need to construct this
+                  tensor in this problem.
     """
-    list_data = type(data) is list and (type(data[0]) is list or type(data[0]) is np.ndarray)
-    data_size = len(data[0]) if list_data else len(data)
-    indices = np.arange(data_size)
-    if shuffle:
-        np.random.shuffle(indices)
-    for minibatch_start in np.arange(0, data_size, minibatch_size):
-        minibatch_indices = indices[minibatch_start:minibatch_start + minibatch_size]
-        yield [minibatch(d, minibatch_indices) for d in data] if list_data \
-            else minibatch(data, minibatch_indices)
+
+    ### YOUR CODE HERE
+    exp_x = tf.exp(x-tf.reduce_max(
+                                  x,
+                                  axis=1,
+                                  keepdims=True,
+                                  ))
+    out = exp_x / tf.reduce_sum(exp_x,axis=1,
+                                keepdims=True,)
+    ### END YOUR CODE
+    
+
+    return out
 
 
-def minibatch(data, minibatch_idx):
-    return data[minibatch_idx] if type(data) is np.ndarray else [data[i] for i in minibatch_idx]
-
-class Config(object):
-    """Holds model hyperparams and data information.
-
-    The config class is used to store various hyperparameters and dataset
-    information parameters. Model objects are passed a Config() object at
-    instantiation.
+def cross_entropy_loss(y, yhat):
     """
-    n_samples = 1024
-    n_features = 100
-    n_classes = 5
-    batch_size = 64
-    n_epochs = 50
-    lr = 1e-4
+    Compute the cross entropy loss in tensorflow.
+    The loss should be summed over the current minibatch.
+
+    y is a one-hot tensor of shape (n_samples, n_classes) and yhat is a tensor
+    of shape (n_samples, n_classes). y should be of dtype tf.int32, and yhat should
+    be of dtype tf.float32.
+
+    The functions tf.to_float, tf.reduce_sum, and tf.log might prove useful. (Many
+    solutions are possible, so you may not need to use all of these functions).
+
+    Note: You are NOT allowed to use the tensorflow built-in cross-entropy
+                functions.
+
+    Args:
+        y:    tf.Tensor with shape (n_samples, n_classes). One-hot encoded.
+        yhat: tf.Tensorwith shape (n_sample, n_classes). Each row encodes a
+                    probability distribution and should sum to 1.
+    Returns:
+        out:  tf.Tensor with shape (1,) (Scalar output). You need to construct this
+                    tensor in the problem.
+    """
+
+    ### YOUR CODE HERE
+#     n = tf.to_float(y.shape[0])
+    out = -(tf.reduce_sum(tf.to_float(y)*tf.log(yhat)))
+    ### END YOUR CODE
+
+    return out
 
 
-class SoftmaxModel(Model):
-    """Implements a Softmax classifier with cross-entropy loss."""
+def test_softmax_basic():
+    """
+    Some simple tests of softmax to get you started.
+    Warning: these are not exhaustive.
+    """
 
-    def add_placeholders(self):
-        """Generates placeholder variables to represent the input tensors.
+    test1 = softmax(tf.constant(np.array([[1001, 1002], [3, 4]]), dtype=tf.float32))
+    with tf.Session() as sess:
+            test1 = sess.run(test1)
+    test_all_close("Softmax test 1", test1, np.array([[0.26894142,  0.73105858],
+                                                      [0.26894142,  0.73105858]]))
 
-        These placeholders are used as inputs by the rest of the model building
-        and will be fed data during training.
+    test2 = softmax(tf.constant(np.array([[-1001, -1002]]), dtype=tf.float32))
+    with tf.Session() as sess:
+            test2 = sess.run(test2)
+    test_all_close("Softmax test 2", test2, np.array([[0.73105858, 0.26894142]]))
 
-        Adds following nodes to the computational graph
-
-        input_placeholder: Input placeholder tensor of shape
-                                              (batch_size, n_features), type tf.float32
-        labels_placeholder: Labels placeholder tensor of shape
-                                              (batch_size, n_classes), type tf.int32
-
-        Add these placeholders to self as the instance variables
-            self.input_placeholder
-            self.labels_placeholder
-        """
-        ### YOUR CODE HERE
-        self.input_placeholder = tf.placeholder((self.config.batch_size,self.config.n_features),type = tf.float32)
-        self.labels_placeholder = tf.placeholder((self.config.batch_size,self.config.n_classes),type = tf.int32)
-        ### END YOUR CODE
-
-    def create_feed_dict(self, inputs_batch, labels_batch=None):
-        """Creates the feed_dict for training the given step.
-
-        A feed_dict takes the form of:
-        feed_dict = {
-                <placeholder>: <tensor of values to be passed for placeholder>,
-                ....
-        }
-
-        If label_batch is None, then no labels are added to feed_dict.
-
-        Hint: The keys for the feed_dict should be the placeholder
-                tensors created in add_placeholders.
-
-        Args:
-            inputs_batch: A batch of input data.
-            labels_batch: A batch of label data.
-        Returns:
-            feed_dict: The feed dictionary mapping from placeholders to values.
-        """
-        ### YOUR CODE HERE
-        if labels_batch:
-          feed_dict = {
-              self.input_placeholder = inputs_batch,
-              self.labels_placeholder = labels_batch
-          }
-        else:
-          feed_dict = {
-              self.input_placeholder = inputs_batch
-          }
-        ### END YOUR CODE
-        return feed_dict
-
-    def add_prediction_op(self):
-        """Adds the core transformation for this model which transforms a batch of input
-        data into a batch of predictions. In this case, the transformation is a linear layer plus a
-        softmax transformation:
-
-        y = softmax(Wx + b)
-
-        Hint: Make sure to create tf.Variables as needed.
-        Hint: For this simple use-case, it's sufficient to initialize both weights W
-                    and biases b with zeros.
-
-        Args:
-            input_data: A tensor of shape (batch_size, n_features).
-        Returns:
-            pred: A tensor of shape (batch_size, n_classes)
-        """
-        ### YOUR CODE HERE
-        W = tf.get_variable('W',
-                            shape=[self.n_features,self.num_classes],
-                            dtype=tf.float32,
-                            initializer=tf.zeros([self.n_features,self.num_classes]),
-                            trainable=True,
-                            )
-        b = tf.get_variable('b',
-                            shape=[self.num_classes],
-                            dtype=tf.float32,
-                            initializer=tf.zeros([self.num_classes]),
-                            trainable=True,
-                           )
-        pred = softmax(tf.matmul(self.input_placeholder,W) + b)                  
-        ### END YOUR CODE
-        return pred
-
-    def add_loss_op(self, pred):
-        """Adds cross_entropy_loss ops to the computational graph.
-
-        Hint: Use the cross_entropy_loss function we defined. This should be a very
-                    short function.
-        Args:
-            pred: A tensor of shape (batch_size, n_classes)
-        Returns:
-            loss: A 0-d tensor (scalar)
-        """
-        ### YOUR CODE HERE
-        loss = cross_entropy_loss(self.labels_placeholder,pred)
-        ### END YOUR CODE
-        return loss
-
-    def add_training_op(self, loss):
-        """Sets up the training Ops.
-
-        Creates an optimizer and applies the gradients to all trainable variables.
-        The Op returned by this function is what must be passed to the
-        `sess.run()` call to cause the model to train. See
-
-        https://www.tensorflow.org/versions/r0.7/api_docs/python/train.html#Optimizer
-
-        for more information.
-
-        Hint: Use tf.train.GradientDescentOptimizer to get an optimizer object.
-                    Calling optimizer.minimize() will return a train_op object.
-
-        Args:
-            loss: Loss tensor, from cross_entropy_loss.
-        Returns:
-            train_op: The Op for training.
-        """
-        ### YOUR CODE HERE
-        train_op = tf.train.GradientDescentOptimizer.minimize(loss)
-        ### END YOUR CODE
-        return train_op
-
-    def run_epoch(self, sess, inputs, labels):
-        """Runs an epoch of training.
-
-        Args:
-            sess: tf.Session() object
-            inputs: np.ndarray of shape (n_samples, n_features)
-            labels: np.ndarray of shape (n_samples, n_classes)
-        Returns:
-            average_loss: scalar. Average minibatch loss of model on epoch.
-        """
-        n_minibatches, total_loss = 0, 0
-        for input_batch, labels_batch in get_minibatches([inputs, labels], self.config.batch_size):
-            n_minibatches += 1
-            total_loss += self.train_on_batch(sess, input_batch, labels_batch)
-        return total_loss / n_minibatches
-
-    def fit(self, sess, inputs, labels):
-        """Fit model on provided data.
-
-        Args:
-            sess: tf.Session()
-            inputs: np.ndarray of shape (n_samples, n_features)
-            labels: np.ndarray of shape (n_samples, n_classes)
-        Returns:
-            losses: list of loss per epoch
-        """
-        losses = []
-        for epoch in range(self.config.n_epochs):
-            start_time = time.time()
-            average_loss = self.run_epoch(sess, inputs, labels)
-            duration = time.time() - start_time
-            print 'Epoch {:}: loss = {:.2f} ({:.3f} sec)'.format(epoch, average_loss, duration)
-            losses.append(average_loss)
-        return losses
-
-    def __init__(self, config):
-        """Initializes the model.
-
-        Args:
-            config: A model configuration object of type Config
-        """
-        self.config = config
-        self.build()
+    print "Basic (non-exhaustive) softmax tests pass\n"
 
 
-def test_softmax_model():
-    """Train softmax model for a number of steps."""
-    config = Config()
+def test_cross_entropy_loss_basic():
+    """
+    Some simple tests of cross_entropy_loss to get you started.
+    Warning: these are not exhaustive.
+    """
+    y = np.array([[0, 1], [1, 0], [1, 0]])
+    yhat = np.array([[.5, .5], [.5, .5], [.5, .5]])
 
-    # Generate random data to train the model on
-    np.random.seed(1234)
-    inputs = np.random.rand(config.n_samples, config.n_features)
-    labels = np.zeros((config.n_samples, config.n_classes), dtype=np.int32)
-    labels[:, 0] = 1
+    test1 = cross_entropy_loss(
+            tf.constant(y, dtype=tf.int32),
+            tf.constant(yhat, dtype=tf.float32))
+    with tf.Session() as sess:
+        test1 = sess.run(test1)
+    expected = -3 * np.log(.5)
+    test_all_close("Cross-entropy test 1", test1, expected)
 
-    # Tell TensorFlow that the model will be built into the default Graph.
-    # (not required but good practice)
-    with tf.Graph().as_default():
-        # Build the model and add the variable initializer Op
-        model = SoftmaxModel(config)
-        init = tf.global_variables_initializer()
-        # If you are using an old version of TensorFlow, you may have to use
-        # this initializer instead.
-        # init = tf.initialize_all_variables()
-
-        # Create a session for running Ops in the Graph
-        with tf.Session() as sess:
-            # Run the Op to initialize the variables.
-            sess.run(init)
-            # Fit the model
-            losses = model.fit(sess, inputs, labels)
-
-    # If Ops are implemented correctly, the average loss should fall close to zero
-    # rapidly.
-    assert losses[-1] < .5
-    print "Basic (non-exhaustive) classifier tests pass"
+    print "Basic (non-exhaustive) cross-entropy tests pass"
 
 if __name__ == "__main__":
-    test_softmax_model()
+    test_softmax_basic()
+    test_cross_entropy_loss_basic()
