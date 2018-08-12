@@ -6,8 +6,8 @@ import cPickle
 
 from model import Model
 from q2_initialization import xavier_weight_init
-from utils.general_utils import Progbar
-from utils.parser_utils import minibatches, load_and_preprocess_data
+from general_utils import Progbar
+from parser_utils import minibatches, load_and_preprocess_data
 
 
 class Config(object):
@@ -87,13 +87,13 @@ class ParserModel(Model):
         ### YOUR CODE HERE
         if labels_batch.all() != None:
           feed_dict = {
-              self.dropout_placeholder:dropout
+              self.dropout_placeholder:dropout,
               self.input_placeholder : inputs_batch,
               self.labels_placeholder : labels_batch
           }
         else:
           feed_dict = {
-              self.dropout_placeholder:dropout
+              self.dropout_placeholder:dropout,
               self.input_placeholder : inputs_batch
           }
         ### END YOUR CODE
