@@ -84,6 +84,7 @@ def minibatch_parse(sentences, model, batch_size):
 #                                                                               unfinished_parses[0].dependencies))
 #           print("stack {} buffer {} dependencies {} ".format(unfinished_parses[1].stack,unfinished_parses[1].buffer,
 #                                                                               unfinished_parses[1].dependencies))
+#           print(unfinished_parses[:batch_size])
           transition = model.predict(unfinished_parses[:batch_size])
           popi = None
           for i,t in enumerate(transition):
