@@ -1,3 +1,4 @@
+
 class PartialParse(object):
     def __init__(self, sentence):
         """Initializes this partial parse.
@@ -21,6 +22,9 @@ class PartialParse(object):
         self.sentence = sentence
 
         ### YOUR CODE HERE
+        self.stack  = ['ROOT']
+        self.buffer = sentence[:]
+        self.dependencies = []
         ### END YOUR CODE
 
     def parse_step(self, transition):
@@ -31,6 +35,12 @@ class PartialParse(object):
                         and right-arc transitions.
         """
         ### YOUR CODE HERE
+        if transition == "S":
+           self.stack.append(self.buffer.pop(0))
+        if transition == "LA":
+           self.dependencies.append((self.stack[-1],self.stack.pop(-2)))
+        if transition == "RA":
+           self.dependencies.append((self.stack[-2],self.stack.pop(-1)))
         ### END YOUR CODE
 
     def parse(self, transitions):
@@ -65,6 +75,40 @@ def minibatch_parse(sentences, model, batch_size):
     """
 
     ### YOUR CODE HERE
+    partial_parses = [PartialParse(sentence) for sentence in sentences]
+    unfinished_parses = partial_parses[:]
+    while unfinished_parses:
+          
+#           print(unfinished_parses[:batch_size])
+#           print("stack {} buffer {} dependencies {} ".format(unfinished_parses[0].stack,unfinished_parses[0].buffer,
+#                                                                               unfinished_parses[0].dependencies))
+#           print("stack {} buffer {} dependencies {} ".format(unfinished_parses[1].stack,unfinished_parses[1].buffer,
+#                                                                               unfinished_parses[1].dependencies))
+          transition = model.predict(unfinished_parses[:batch_size])
+          popi = None
+          for i,t in enumerate(transition):
+              
+#               print("transition {} stack {} buffer {} dependencies {} ".format(t,unfinished_parses[i].stack,unfinished_parses[i].buffer,
+#                                                                               unfinished_parses[i].dependencies))
+              unfinished_parses[i].parse_step(t)
+              if len(unfinished_parses[i].stack) == 1:
+                   popi = i
+#                  unfinished_parses.pop(i)
+#                    print(popi)
+#                    print("transition {} stack {} buffer {} dependencies {} ".format(t,unfinished_parses[i].stack,unfinished_parses[i].buffer,
+#                                                                            unfinished_parses[i].dependencies))
+#               print(popi)
+#               print(i)
+#               print(popi and (i==batchsize-1))
+              if (popi!=None) and (i==len(transition)-1):
+#                   print(len(unfinished_parses))
+                  popi
+                  unfinished_parses.pop(popi)
+#                   print(len(unfinished_parses))
+
+          
+          
+    dependencies =   [pp.dependencies for pp in partial_parses]                            
     ### END YOUR CODE
 
     return dependencies
